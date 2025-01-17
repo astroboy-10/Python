@@ -1,0 +1,70 @@
+// One of the examples where the VHDL code and constraint files were created using python script.
+// Application 3 was used in the original script [Py_to_VHDL_Script]
+
+Terminal Output:
+
+Enter the number corresponding to your choice: 3
+Enter entity name for logic circuit: g
+Enter the number of gates to include: 2
+Enter the type of gate 1 (AND, OR, NOT, etc.): OR
+Enter the number of inputs for OR gate: 2
+Enter input 1: I1
+Enter input 2: I2
+Enter the output signal name: O12
+Enter the type of gate 2 (AND, OR, NOT, etc.): AND
+Enter the number of inputs for AND gate: I1a
+Invalid input! Please enter an integer value for the number of inputs.
+Enter the number of inputs for AND gate: 2
+Enter input 1: I1a
+Enter input 2: I2a
+Enter the output signal name: O12a
+File saved: g.vhdl
+Enter the FPGA pin number for signal 'I2': F12
+Enter the FPGA pin number for signal 'I1': D12
+Enter the FPGA pin number for signal 'I2a': G13
+Enter the FPGA pin number for signal 'I1a': H14
+Enter the FPGA pin number for signal 'O12a': M5
+Enter the FPGA pin number for signal 'O12': M3
+File saved: g_constraints.xdc
+
+// File will be saved in .vhdl and .xdc format 
+
+.vhdl file - 
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity g is
+    Port (
+        I2 : inout STD_LOGIC;
+        I1 : inout STD_LOGIC;
+        I2a : inout STD_LOGIC;
+        I1a : inout STD_LOGIC;
+        O12a : inout STD_LOGIC;
+        O12 : inout STD_LOGIC;
+    );
+end {entity_name};
+
+architecture Behavioral of {entity_name} is
+begin
+    O12 <= OR(I1, I2);
+    O12a <= AND(I1a, I2a);
+end Behavioral;
+
+
+.xdc file - 
+
+set_property PACKAGE_PIN F12 [get_ports {I2}]
+set_property IOSTANDARD LVCMOS33 [get_ports {I2}]
+set_property PACKAGE_PIN D12 [get_ports {I1}]
+set_property IOSTANDARD LVCMOS33 [get_ports {I1}]
+set_property PACKAGE_PIN G13 [get_ports {I2a}]
+set_property IOSTANDARD LVCMOS33 [get_ports {I2a}]
+set_property PACKAGE_PIN H14 [get_ports {I1a}]
+set_property IOSTANDARD LVCMOS33 [get_ports {I1a}]
+set_property PACKAGE_PIN M5 [get_ports {O12a}]
+set_property IOSTANDARD LVCMOS33 [get_ports {O12a}]
+set_property PACKAGE_PIN M3 [get_ports {O12}]
+set_property IOSTANDARD LVCMOS33 [get_ports {O12}]
+
+// you can change this according to your choice and run this code in Vivado.
