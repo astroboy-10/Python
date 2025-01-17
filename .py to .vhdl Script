@@ -1,0 +1,929 @@
+#Python script for code the type of application you want to perform in VHDL code
+#Name: Gaurav Kumar
+#Role: Research Laboratory Technician
+#Company: University of Cambridge
+#Location: Cambridge, UK
+#Date: 17/01/2025
+
+
+import os
+import random
+import string
+
+
+def main():
+    print("Welcome to the Comprehensive VHDL Code Generator!")
+    print("Choose the type of application you want to generate:")
+    options = [
+        "Binary Counter", "Multiplexer", "Logic Gates and Combinational Circuits",
+        "Arithmetic Operations (Adders/Subtractors)", "Shift Register",
+        "Flip-Flops (D, SR, T, JK)", "ALU (Arithmetic Logic Unit)",
+        "Parity Generator and Checker", "Finite State Machine (FSM)",
+        "PWM Generator", "Clock Divider", "Decision Tree Automation"
+    ]
+    for i, option in enumerate(options, 1):
+        print(f"{i}. {option}")
+
+    while True:
+        choice = input("Enter the number corresponding to your choice: ")
+        if choice in [str(i) for i in range(1, 13)]:
+            break
+        else:
+            print("Invalid choice! Please select a valid option.")
+
+    if choice == "1":
+        generate_binary_counter()
+    elif choice == "2":
+        generate_multiplexer()
+    elif choice == "3":
+        generate_logic_circuit()
+    elif choice == "4":
+        generate_arithmetic_operation()
+    elif choice == "5":
+        generate_shift_register()
+    elif choice == "6":
+        generate_flip_flop()
+    elif choice == "7":
+        generate_alu()
+    elif choice == "8":
+        generate_parity_circuit()
+    elif choice == "9":
+        generate_priority_encoder()
+    elif choice == "10":
+        generate_digital_comparator()
+    elif choice == "11":
+        generate_clock_divider()
+    elif choice == "12":
+        generate_decision_tree()
+
+
+
+# Utility: Check if file exists and ask before overwriting
+def write_to_file(filename, content):
+    if os.path.exists(filename):
+        overwrite = input(f"The file {filename} already exists. Overwrite? (y/n): ").strip().lower()
+        if overwrite != 'y':
+            print("File creation canceled.")
+            return
+    with open(filename, "w") as f:
+        f.write(content)
+    print(f"File saved: {filename}")
+
+
+# Utility: Generate FPGA Constraints File
+def create_constraints(pins, entity_name):
+    constraints = []
+    for pin in pins:
+        pin_number = input(f"Enter the FPGA pin number for signal '{pin}': ")
+        constraints.append(f"set_property PACKAGE_PIN {pin_number} [get_ports {{{pin}}}]\n")
+        constraints.append(f"set_property IOSTANDARD LVCMOS33 [get_ports {{{pin}}}]\n")
+
+    xdc_filename = f"{entity_name}_constraints.xdc"
+    write_to_file(xdc_filename, "".join(constraints))
+
+
+# Application 1: Binary Counter
+def generate_binary_counter():
+    entity_name = input("Enter the entity name (e.g., binary_counter): ")
+    width = int(input("Enter the width of the counter (number of bits): "))
+    clock = input("Enter the clock signal name (e.g., clk): ")
+    reset = input("Enter the reset signal name (e.g., reset): ")
+
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity {entity_name} is
+    Port (
+        {clock} : in STD_LOGIC;
+        {reset} : in STD_LOGIC;
+        count : out STD_LOGIC_VECTOR({width - 1} downto 0)
+    );
+end {entity_name};
+
+architecture Behavioral of {entity_name} is
+    signal counter: UNSIGNED({width - 1} downto 0) := (others => '0');
+begin
+    process({clock}, {reset})
+    begin
+        if {reset} = '1' then
+            counter <= (others => '0');
+        elsif rising_edge({clock}) then
+            counter <= counter + 1;
+        end if;
+    end process;
+
+    count <= STD_LOGIC_VECTOR(counter);
+end Behavioral;
+"""
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+    create_constraints([clock, reset, "count"], entity_name)
+
+
+# Application 2: Multiplexer
+def generate_multiplexer():
+    entity_name = input("Enter the entity name (e.g., mux): ")
+    num_inputs = int(input("Enter number of data inputs (e.g., 4 for 4-to-1 MUX): "))
+    select_lines = int(input("Enter number of select lines (e.g., 2 for 4-to-1 MUX): "))
+    output = input("Enter the output signal name (e.g., y): ")
+
+    data_inputs = [input(f"Enter data input {i + 1} name (e.g., d{i}): ") for i in range(num_inputs)]
+    select_signals = [input(f"Enter select line {i + 1} name (e.g., s{i}): ") for i in range(select_lines)]
+
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity {entity_name} is
+    Port (
+"""
+    for data in data_inputs:
+        vhdl_code += f"        {data} : in STD_LOGIC;\n"
+    for sel in select_signals:
+        vhdl_code += f"        {sel} : in STD_LOGIC;\n"
+    vhdl_code += f"        {output} : out STD_LOGIC\n    );\nend {entity_name};\n\n"
+
+    vhdl_code += f"""
+architecture Behavioral of {entity_name} is
+begin
+    process({', '.join(select_signals + data_inputs)})
+    begin
+        case {f'"{"&".join(select_signals)}"'} is
+"""
+    for i, data in enumerate(data_inputs):
+        sel_bin = bin(i)[2:].zfill(select_lines)
+        vhdl_code += f"            when \"{sel_bin}\" => {output} <= {data};\n"
+    vhdl_code += f"""            when others => {output} <= '0';
+        end case;
+    end process;
+end Behavioral;
+"""
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+    create_constraints(data_inputs + select_signals + [output], entity_name)
+
+
+# Application 3: Logic Gates and Combinational Circuits
+
+def generate_logic_circuit():
+    entity_name = input("Enter entity name for logic circuit: ")
+    while True:
+        try:
+            num_gates = int(input("Enter the number of gates to include: "))
+            if num_gates < 1:
+                print("Number of gates should be at least 1. Please try again.")
+                continue
+            break
+        except ValueError:
+            print("Invalid input! Please enter an integer value for the number of gates.")
+
+    signals = []
+    operations = []
+
+    for i in range(num_gates):
+        gate_type = input(f"Enter the type of gate {i + 1} (AND, OR, NOT, etc.): ").upper()
+        if gate_type == "NOT":
+            inputs = [input("Enter the input signal name: ")]
+            output = input("Enter the output signal name: ")
+            operations.append((gate_type, inputs, output))
+            signals.extend(inputs + [output])
+        else:
+            while True:
+                try:
+                    num_inputs = int(input(f"Enter the number of inputs for {gate_type} gate: "))
+                    if num_inputs < 2:  # Assuming minimum 2 inputs for gates other than NOT
+                        print(f"{gate_type} gates require at least 2 inputs. Please try again.")
+                        continue
+                    break
+                except ValueError:
+                    print("Invalid input! Please enter an integer value for the number of inputs.")
+            inputs = [input(f"Enter input {j + 1}: ") for j in range(num_inputs)]
+            output = input("Enter the output signal name: ")
+            operations.append((gate_type, inputs, output))
+            signals.extend(inputs + [output])
+
+    signals = list(set(signals))  # Remove duplicates
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity {entity_name} is
+    Port (
+"""
+    for sig in signals:
+        vhdl_code += f"        {sig} : inout STD_LOGIC;\n"
+    vhdl_code = vhdl_code.strip(",\n") + "\n    );\nend {entity_name};\n\n"
+
+    vhdl_code += "architecture Behavioral of {entity_name} is\nbegin\n"
+    for gate_type, inputs, output in operations:
+        if gate_type == "NOT":
+            vhdl_code += f"    {output} <= NOT {inputs[0]};\n"
+        else:
+            vhdl_code += f"    {output} <= {gate_type}({', '.join(inputs)});\n"
+    vhdl_code += "end Behavioral;\n"
+
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+    create_constraints(signals, entity_name)
+
+
+
+# Application 4: Arithmetic Operations (Adders/Subtractors)
+def generate_arithmetic_operation():
+    entity_name = input("Enter the entity name (e.g., adder_subtractor): ")
+
+    # Input Validation: Ask user if they would like an "Adder", "Subtractor", or both
+    while True:
+        operation_type = input("Choose the operation type (Adder, Subtractor, or Both): ").strip().lower()
+        if operation_type in ("adder", "subtractor", "both"):
+            break
+        else:
+            print("Invalid option! Please enter 'Adder', 'Subtractor', or 'Both'.")
+
+    # Input for width of the operation
+    while True:
+        try:
+            width = int(input("Enter the width of the operands (number of bits, e.g., 4): "))
+            if width > 0:
+                break
+            else:
+                print("Width must be greater than 0. Try again.")
+        except ValueError:
+            print("Invalid input! Please enter an integer value.")
+
+    # Input for signal names
+    input_a = input("Enter the name for the first operand signal (e.g., A): ")
+    input_b = input("Enter the name for the second operand signal (e.g., B): ")
+    output = input("Enter the name for the output signal (e.g., Result): ")
+    carry = None
+    if operation_type in ("adder", "both"):
+        carry = input("Enter the name for the carry-out signal (e.g., Carry): ")
+
+    # Generate VHDL Code
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity {entity_name} is
+    Port (
+        {input_a} : in STD_LOGIC_VECTOR({width - 1} downto 0);
+        {input_b} : in STD_LOGIC_VECTOR({width - 1} downto 0);
+        {output} : out STD_LOGIC_VECTOR({width - 1} downto 0);
+"""
+    if carry:
+        vhdl_code += f"        {carry} : out STD_LOGIC;\n"
+    vhdl_code += "    );\nend {entity_name};\n\n"
+
+    vhdl_code += f"""
+architecture Behavioral of {entity_name} is
+begin
+"""
+    if operation_type in ("adder", "both"):
+        vhdl_code += f"    process({input_a}, {input_b})\n    begin\n"
+        vhdl_code += f"        -- Adder Logic\n"
+        vhdl_code += f"        variable sum_result: UNSIGNED({width} downto 0);\n"
+        vhdl_code += f"        sum_result := UNSIGNED({input_a}) + UNSIGNED({input_b});\n"
+        vhdl_code += f"        {output} <= STD_LOGIC_VECTOR(sum_result({width - 1} downto 0));\n"
+        vhdl_code += f"        {carry} <= sum_result({width}) when sum_result({width}) = '1' else '0';\n"
+        vhdl_code += f"    end process;\n"
+
+    if operation_type in ("subtractor", "both"):
+        vhdl_code += f"    process({input_a}, {input_b})\n    begin\n"
+        vhdl_code += f"        -- Subtractor Logic\n"
+        vhdl_code += f"        {output} <= STD_LOGIC_VECTOR(UNSIGNED({input_a}) - UNSIGNED({input_b}));\n"
+        vhdl_code += f"    end process;\n"
+
+    vhdl_code += "end Behavioral;\n"
+
+    # Save to File
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+
+    # Generate Constraints
+    create_constraints([input_a, input_b, output] + ([carry] if carry else []), entity_name)
+
+
+
+
+# Application 5: Shift Register
+def generate_shift_register():
+    entity_name = input("Enter the entity name for the shift register (e.g., shift_register): ")
+
+    # Input for shift register width
+    while True:
+        try:
+            width = int(input("Enter the width of the shift register (number of bits, e.g., 4): "))
+            if width > 0:
+                break
+            else:
+                print("Width must be greater than 0. Try again.")
+        except ValueError:
+            print("Invalid input! Please enter an integer value.")
+
+    # Input for shift direction
+    while True:
+        shift_type = input("Choose the type of shift (left or right): ").strip().lower()
+        if shift_type in ("left", "right"):
+            break
+        else:
+            print("Invalid input! Please enter either 'left' or 'right'.")
+
+    # Input for clock and reset signals
+    clock = input("Enter the name of the clock signal (e.g., clk): ")
+    reset = input("Enter the name of the reset signal (e.g., reset): ")
+    input_signal = input(
+        f"Enter the name of the {'leftmost' if shift_type == 'left' else 'rightmost'} input signal (e.g., data_in): ")
+    output_signal = input("Enter the name of the output signal (e.g., data_out): ")
+
+    # Generate VHDL code
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity {entity_name} is
+    Port (
+        {clock} : in STD_LOGIC;
+        {reset} : in STD_LOGIC;
+        {input_signal} : in STD_LOGIC;
+        {output_signal} : out STD_LOGIC_VECTOR({width - 1} downto 0)
+    );
+end {entity_name};
+
+architecture Behavioral of {entity_name} is
+    signal data: STD_LOGIC_VECTOR({width - 1} downto 0) := (others => '0');
+begin
+    process({clock}, {reset})
+    begin
+        if {reset} = '1' then
+            data <= (others => '0');
+        elsif rising_edge({clock}) then
+"""
+    if shift_type == "left":
+        vhdl_code += f"            data <= data({width - 2} downto 0) & {input_signal};\n"
+    else:  # right shift
+        vhdl_code += f"            data <= {input_signal} & data({width - 1} downto 1);\n"
+
+    vhdl_code += f"""        end if;
+    end process;
+
+    {output_signal} <= data;
+
+end Behavioral;
+"""
+
+    # Save to file
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+
+    # Generate constraints
+    create_constraints([clock, reset, input_signal, output_signal], entity_name)
+
+
+
+
+
+# Application 6: Flip-Flops (D, SR, T, JK)
+def generate_flip_flop():
+    # Get the flip-flop type from the user
+    while True:
+        flip_flop_type = input("Choose the flip-flop type (D, SR, T, JK): ").strip().upper()
+        if flip_flop_type in ("D", "SR", "T", "JK"):
+            break
+        else:
+            print("Invalid input! Please enter 'D', 'SR', 'T', or 'JK'.")
+
+    entity_name = input(
+        f"Enter the entity name for the {flip_flop_type} flip-flop (e.g., {flip_flop_type}_flip_flop): ")
+
+    # Define the clock and reset signals
+    clock = input("Enter the name of the clock signal (e.g., clk): ")
+    reset = input("Enter the name of the reset signal (e.g., reset): ")
+
+    # Define other signals based on the flip-flop type
+    inputs = []
+    if flip_flop_type == "D":
+        d_input = input("Enter the name for the D input signal (e.g., D): ")
+        inputs.append(d_input)
+    elif flip_flop_type == "SR":
+        s_input = input("Enter the name for the Set input signal (e.g., S): ")
+        r_input = input("Enter the name for the Reset input signal (e.g., R): ")
+        inputs.extend([s_input, r_input])
+    elif flip_flop_type == "T":
+        t_input = input("Enter the name for the T input signal (e.g., T): ")
+        inputs.append(t_input)
+    elif flip_flop_type == "JK":
+        j_input = input("Enter the name for the J input signal (e.g., J): ")
+        k_input = input("Enter the name for the K input signal (e.g., K): ")
+        inputs.extend([j_input, k_input])
+
+    q_output = input("Enter the name for the Q output signal (e.g., Q): ")
+    q_bar_output = input("Enter the name for the Q_bar output signal (optional, press Enter to skip): ") or None
+
+    # Generate VHDL code
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity {entity_name} is
+    Port (
+        {clock} : in STD_LOGIC;
+        {reset} : in STD_LOGIC;
+"""
+
+    for input_signal in inputs:
+        vhdl_code += f"        {input_signal} : in STD_LOGIC;\n"
+    vhdl_code += f"        {q_output} : out STD_LOGIC"
+    if q_bar_output:
+        vhdl_code += f";\n        {q_bar_output} : out STD_LOGIC"
+    vhdl_code += "\n    );\nend {entity_name};\n\n"
+
+    vhdl_code += f"architecture Behavioral of {entity_name} is\n"
+    vhdl_code += f"    signal q: STD_LOGIC := '0';\n"
+    vhdl_code += "begin\n"
+    vhdl_code += f"    process({clock}, {reset})\n"
+    vhdl_code += "    begin\n"
+    vhdl_code += f"        if {reset} = '1' then\n"
+    vhdl_code += "            q <= '0';\n"
+
+    if flip_flop_type == "D":
+        vhdl_code += f"        elsif rising_edge({clock}) then\n"
+        vhdl_code += f"            q <= {d_input};\n"
+    elif flip_flop_type == "SR":
+        vhdl_code += f"        elsif rising_edge({clock}) then\n"
+        vhdl_code += f"            if {s_input} = '1' and {r_input} = '0' then\n"
+        vhdl_code += f"                q <= '1';\n"
+        vhdl_code += f"            elsif {s_input} = '0' and {r_input} = '1' then\n"
+        vhdl_code += f"                q <= '0';\n"
+        vhdl_code += f"            elsif {s_input} = '1' and {r_input} = '1' then\n"
+        vhdl_code += f"                q <= 'X'; -- Undefined behavior\n"
+        vhdl_code += f"            end if;\n"
+    elif flip_flop_type == "T":
+        vhdl_code += f"        elsif rising_edge({clock}) then\n"
+        vhdl_code += f"            if {t_input} = '1' then\n"
+        vhdl_code += f"                q <= not q;\n"
+        vhdl_code += f"            end if;\n"
+    elif flip_flop_type == "JK":
+        vhdl_code += f"        elsif rising_edge({clock}) then\n"
+        vhdl_code += f"            if {j_input} = '1' and {k_input} = '0' then\n"
+        vhdl_code += f"                q <= '1';\n"
+        vhdl_code += f"            elsif {j_input} = '0' and {k_input} = '1' then\n"
+        vhdl_code += f"                q <= '0';\n"
+        vhdl_code += f"            elsif {j_input} = '1' and {k_input} = '1' then\n"
+        vhdl_code += f"                q <= not q;\n"
+        vhdl_code += f"            end if;\n"
+
+    vhdl_code += f"        end if;\n"
+    vhdl_code += f"    end process;\n"
+    vhdl_code += f"    {q_output} <= q;\n"
+    if q_bar_output:
+        vhdl_code += f"    {q_bar_output} <= not q;\n"
+    vhdl_code += "end Behavioral;\n"
+
+    # Save to File
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+
+    # Generate Constraints
+    create_constraints([clock, reset] + inputs + [q_output] + ([q_bar_output] if q_bar_output else []), entity_name)
+
+
+
+# Application 7: ALU (Arithmetic Logic Unit)
+def generate_alu():
+    # User inputs for ALU
+    entity_name = input("Enter the entity name for the ALU (e.g., alu): ")
+    while True:
+        try:
+            alu_width = int(input("Enter the width of the ALU (number of bits, e.g., 4): "))
+            if alu_width > 0:
+                break
+            else:
+                print("Width must be greater than 0. Try again.")
+        except ValueError:
+            print("Invalid input! Please enter a valid integer.")
+
+    clock = input("Enter the name of the clock signal (e.g., clk): ")
+    reset = input("Enter the name of the reset signal (e.g., reset): ")
+    operand_a = input(f"Enter the name of the first operand signal (e.g., A, {alu_width}-bit STD_LOGIC_VECTOR): ")
+    operand_b = input(f"Enter the name of the second operand signal (e.g., B, {alu_width}-bit STD_LOGIC_VECTOR): ")
+    control_signal = input("Enter the name for the control signal (e.g., control, represents operation select): ")
+    result_signal = input(f"Enter the name for the result signal (e.g., result, {alu_width}-bit STD_LOGIC_VECTOR): ")
+
+    # List of operations
+    operations = ["ADD (A + B)", "SUB (A - B)", "AND (A and B)", "OR (A or B)",
+                  "XOR (A xor B)", "NOT A", "LEFT SHIFT (A << 1)", "RIGHT SHIFT (A >> 1)"]
+    print("\nThe following operations will be supported:")
+    for i, op in enumerate(operations, 0):
+        print(f"{i}: {op}")
+    print(f"Control signal must be {len(operations) - 1} bits wide to select operations.\n")
+
+    # Generate VHDL Code
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity {entity_name} is
+    Port (
+        {clock} : in STD_LOGIC;
+        {reset} : in STD_LOGIC;
+        {operand_a} : in STD_LOGIC_VECTOR({alu_width - 1} downto 0);
+        {operand_b} : in STD_LOGIC_VECTOR({alu_width - 1} downto 0);
+        {control_signal} : in STD_LOGIC_VECTOR({len(operations) - 1} downto 0);
+        {result_signal} : out STD_LOGIC_VECTOR({alu_width - 1} downto 0)
+    );
+end {entity_name};
+
+architecture Behavioral of {entity_name} is
+    signal result_internal : STD_LOGIC_VECTOR({alu_width - 1} downto 0) := (others => '0');
+begin
+    process({clock}, {reset})
+    begin
+        if {reset} = '1' then
+            result_internal <= (others => '0');
+        elsif rising_edge({clock}) then
+            case {control_signal} is
+                when "000" => -- ADD
+                    result_internal <= STD_LOGIC_VECTOR(SIGNED({operand_a}) + SIGNED({operand_b}));
+                when "001" => -- SUB
+                    result_internal <= STD_LOGIC_VECTOR(SIGNED({operand_a}) - SIGNED({operand_b}));
+                when "010" => -- AND
+                    result_internal <= {operand_a} and {operand_b};
+                when "011" => -- OR
+                    result_internal <= {operand_a} or {operand_b};
+                when "100" => -- XOR
+                    result_internal <= {operand_a} xor {operand_b};
+                when "101" => -- NOT A
+                    result_internal <= not {operand_a};
+                when "110" => -- LEFT SHIFT
+                    result_internal <= {operand_a}({alu_width - 2} downto 0) & '0';
+                when "111" => -- RIGHT SHIFT
+                    result_internal <= '0' & {operand_a}({alu_width - 1} downto 1);
+                when others =>
+                    result_internal <= (others => '0'); -- Default case
+            end case;
+        end if;
+    end process;
+
+    {result_signal} <= result_internal;
+
+end Behavioral;
+"""
+
+    # Save to file
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+
+    # Generate constraints
+    create_constraints([clock, reset, operand_a, operand_b, control_signal, result_signal], entity_name)
+
+
+
+# Application 8: Parity Generator and Checker
+def generate_parity_circuit():
+    # Gather user input for entity name and operation type
+    while True:
+        circuit_type = input("Choose the type of circuit (Generator or Checker): ").strip().lower()
+        if circuit_type in ("generator", "checker"):
+            break
+        else:
+            print("Invalid input! Please enter 'Generator' or 'Checker'.")
+
+    parity_type = input("Select parity type (Even or Odd): ").strip().lower()
+    if parity_type not in ("even", "odd"):
+        print("Invalid parity type. Defaulting to 'Even'.")
+        parity_type = "even"
+
+    entity_name = input(f"Enter the entity name for your {circuit_type} (e.g., parity_{circuit_type}): ")
+
+    # Get the data width
+    while True:
+        try:
+            data_width = int(input("Enter the width of the data signal (number of bits, e.g., 8): "))
+            if data_width > 0:
+                break
+            else:
+                print("Width must be greater than 0. Try again.")
+        except ValueError:
+            print("Invalid input! Please enter a valid integer.")
+
+    # Signal names
+    data_signal = input(f"Enter the name of the data signal (e.g., data_in, {data_width}-bit STD_LOGIC_VECTOR): ")
+    parity_signal = input("Enter the name of the parity bit signal (e.g., parity_bit): ")
+
+    if circuit_type == "checker":
+        valid_signal = input("Enter the name of the valid output signal (e.g., valid): ")
+
+    # Generate VHDL Code
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity {entity_name} is
+    Port (
+        {data_signal} : in STD_LOGIC_VECTOR({data_width - 1} downto 0);
+    """
+    if circuit_type == "generator":
+        vhdl_code += f"        {parity_signal} : out STD_LOGIC"
+    else:  # Checker
+        vhdl_code += f"        {parity_signal} : in STD_LOGIC;\n"
+        vhdl_code += f"        {valid_signal} : out STD_LOGIC"
+    vhdl_code += "\n    );\nend {entity_name};\n\n"
+
+    vhdl_code += f"architecture Behavioral of {entity_name} is\n"
+    vhdl_code += "begin\n"
+
+    if circuit_type == "generator":
+        # Parity Generator Logic
+        vhdl_code += f"    {parity_signal} <= "
+        if parity_type == "even":
+            vhdl_code += f"not "  # For even parity, result must be complemented
+        vhdl_code += f"xor reduce {data_signal};\n"
+    else:
+        # Parity Checker Logic
+        vhdl_code += f"    {valid_signal} <= "
+        vhdl_code += f"'1' when "
+        if parity_type == "even":
+            vhdl_code += f"(not xor reduce {data_signal}) = {parity_signal} else '0';\n"
+        else:
+            vhdl_code += f"(xor reduce {data_signal}) = {parity_signal} else '0';\n"
+
+    vhdl_code += f"end Behavioral;\n"
+
+    # Save VHDL code to file
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+
+    # Generate constraints file
+    signals = [data_signal, parity_signal]
+    if circuit_type == "checker":
+        signals.append(valid_signal)
+    create_constraints(signals, entity_name)
+
+
+
+# Application 9: Priority Encoder
+def generate_priority_encoder():
+    # Get the encoder specifications from the user
+    entity_name = input("Enter the entity name for the Priority Encoder (e.g., priority_encoder): ")
+
+    while True:
+        try:
+            input_width = int(input("Enter the number of input lines (e.g., 8 for an 8-to-3 encoder): "))
+            if input_width > 1:  # At least 2 inputs are required
+                break
+            else:
+                print("Input width must be greater than 1. Try again.")
+        except ValueError:
+            print("Invalid input! Please enter a valid integer.")
+
+    # Calculate output width (log2 of input width)
+    output_width = (input_width - 1).bit_length()
+
+    input_signal = input(f"Enter the name of the input signal (e.g., inputs, {input_width}-bit STD_LOGIC_VECTOR): ")
+    output_signal = input(
+        f"Enter the name of the output signal (e.g., encoded_output, {output_width}-bit STD_LOGIC_VECTOR): ")
+    valid_signal = input("Enter the name of the valid signal output (e.g., valid): ")
+
+    # Generate VHDL Code
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity {entity_name} is
+    Port (
+        {input_signal} : in STD_LOGIC_VECTOR({input_width - 1} downto 0);
+        {output_signal} : out STD_LOGIC_VECTOR({output_width - 1} downto 0);
+        {valid_signal} : out STD_LOGIC
+    );
+end {entity_name};
+
+architecture Behavioral of {entity_name} is
+begin
+    process({input_signal})
+    begin
+        -- Default values
+        {output_signal} <= (others => '0');
+        {valid_signal} <= '0';
+
+        -- Check inputs and generate output
+"""
+    # Priority encoding logic
+    for i in range(input_width - 1, -1, -1):  # Start from the highest priority input
+        binary_value = f"{i:0{output_width}b}"  # Binary representation of the index
+        vhdl_code += f"        if {input_signal}({i}) = '1' then\n"
+        vhdl_code += f"            {output_signal} <= \"{binary_value}\";\n"
+        vhdl_code += f"            {valid_signal} <= '1';\n"
+        vhdl_code += f"        end if;\n"
+
+    vhdl_code += f"""    end process;
+end Behavioral;
+"""
+
+    # Save to file
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+
+    # Generate constraints
+    signals = [input_signal, output_signal, valid_signal]
+    create_constraints(signals, entity_name)
+
+
+
+# Application 10: Digital Comparator
+def generate_digital_comparator():
+    # Get the comparator specifications from the user
+    entity_name = input("Enter the entity name for the Digital Comparator (e.g., comparator): ")
+
+    while True:
+        try:
+            comparator_width = int(input("Enter the width of the comparator (number of bits, e.g., 4): "))
+            if comparator_width > 0:
+                break
+            else:
+                print("Width must be greater than 0. Try again.")
+        except ValueError:
+            print("Invalid input! Please enter a valid integer.")
+
+    # Signal names
+    input_a = input(f"Enter the name of the first input signal (e.g., A, {comparator_width}-bit STD_LOGIC_VECTOR): ")
+    input_b = input(f"Enter the name of the second input signal (e.g., B, {comparator_width}-bit STD_LOGIC_VECTOR): ")
+    equal_signal = input("Enter the name of the equality output signal (e.g., is_equal): ")
+    greater_signal = input("Enter the name of the greater-than output signal (e.g., is_greater): ")
+    less_signal = input("Enter the name of the less-than output signal (e.g., is_less): ")
+
+    # Generate VHDL Code
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity {entity_name} is
+    Port (
+        {input_a} : in STD_LOGIC_VECTOR({comparator_width - 1} downto 0);
+        {input_b} : in STD_LOGIC_VECTOR({comparator_width - 1} downto 0);
+        {equal_signal} : out STD_LOGIC;
+        {greater_signal} : out STD_LOGIC;
+        {less_signal} : out STD_LOGIC
+    );
+end {entity_name};
+
+architecture Behavioral of {entity_name} is
+begin
+    process({input_a}, {input_b})
+    begin
+        -- Default values
+        {equal_signal} <= '0';
+        {greater_signal} <= '0';
+        {less_signal} <= '0';
+
+        if UNSIGNED({input_a}) = UNSIGNED({input_b}) then
+            {equal_signal} <= '1';
+        elsif UNSIGNED({input_a}) > UNSIGNED({input_b}) then
+            {greater_signal} <= '1';
+        else
+            {less_signal} <= '1';
+        end if;
+    end process;
+end Behavioral;
+"""
+
+    # Save to file
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+
+    # Generate constraints
+    signals = [input_a, input_b, equal_signal, greater_signal, less_signal]
+    create_constraints(signals, entity_name)
+
+
+# Application 11: Clock Divider
+def generate_clock_divider():
+    # Get the divider specifications from the user
+    entity_name = input("Enter the entity name for the Clock Divider (e.g., clock_divider): ")
+
+    while True:
+        try:
+            division_factor = int(input("Enter the clock division factor (e.g., 2 for half frequency clock): "))
+            if division_factor > 1:
+                break
+            else:
+                print("Division factor must be greater than 1. Try again.")
+        except ValueError:
+            print("Invalid input! Please enter a valid integer.")
+
+    # Signal names
+    input_clock = input("Enter the name of the input clock signal (e.g., clk_in): ")
+    output_clock = input("Enter the name of the output clock signal (e.g., clk_out): ")
+    reset_signal = input("Enter the name of the reset signal (e.g., reset): ")
+
+    # Generate VHDL Code
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity {entity_name} is
+    Port (
+        {input_clock} : in STD_LOGIC;
+        {output_clock} : out STD_LOGIC;
+        {reset_signal} : in STD_LOGIC
+    );
+end {entity_name};
+
+architecture Behavioral of {entity_name} is
+    signal counter : INTEGER := 0;
+    signal clk_out_internal : STD_LOGIC := '0';
+begin
+    process({input_clock}, {reset_signal})
+    begin
+        if {reset_signal} = '1' then
+            -- Reset the counter and output clock
+            counter <= 0;
+            clk_out_internal <= '0';
+        elsif rising_edge({input_clock}) then
+            -- Increment counter and toggle output clock at division factor
+            if counter = ({division_factor // 2} - 1) then
+                counter <= 0;
+                clk_out_internal <= NOT clk_out_internal;
+            else
+                counter <= counter + 1;
+            end if;
+        end if;
+    end process;
+
+    -- Assign the output clock
+    {output_clock} <= clk_out_internal;
+
+end Behavioral;
+"""
+
+    # Save to file
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+
+    # Generate constraints
+    signals = [input_clock, output_clock, reset_signal]
+    create_constraints(signals, entity_name)
+
+
+
+# Application 12: Decision Tree Automations
+def generate_decision_tree():
+    # Get specifications for the decision tree
+    entity_name = input("Enter the entity name for the Decision Tree Automation (e.g., decision_tree): ")
+
+    while True:
+        try:
+            decision_depth = int(input("Enter the depth of the decision tree (e.g., 3): "))
+            if decision_depth > 0:
+                break
+            else:
+                print("The depth must be greater than 0. Try again.")
+        except ValueError:
+            print("Invalid input! Please enter a valid integer.")
+
+    # Signal names and outputs
+    input_signal = input("Enter the name of the input signal for conditions (e.g., input_conditions): ")
+    output_signal = input("Enter the name of the output decision signal (e.g., decision_result): ")
+
+    # Generate VHDL code
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity {entity_name} is
+    Port (
+        {input_signal} : in STD_LOGIC_VECTOR({2 ** decision_depth - 1} downto 0);
+        {output_signal} : out INTEGER
+    );
+end {entity_name};
+
+architecture Behavioral of {entity_name} is
+begin
+    process({input_signal})
+    begin
+        case {input_signal} is
+"""
+
+    # Create the decision logic branches
+    for i in range(2 ** decision_depth):
+        binary_condition = f"{i:0{2 ** decision_depth}b}"
+        vhdl_code += f"            when \"{binary_condition}\" => {output_signal} <= {i};\n"
+
+    # Final default case
+    vhdl_code += f"""            when others => {output_signal} <= -1; -- Undefined case
+        end case;
+    end process;
+end Behavioral;
+"""
+
+    # Save to file
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+
+    # Generate constraints
+    signals = [input_signal, output_signal]
+    create_constraints(signals, entity_name)
+
+
+
+
+
+# Run the program
+
+if __name__ == "__main__":
+    main()
+
+
