@@ -1,0 +1,224 @@
+#Python script for code the type of application you want to perform in VHDL code
+#Name: Gaurav Kumar
+
+
+import os
+
+
+def main():
+    print("Welcome to the Comprehensive VHDL Code Generator!")
+    print("Choose the type of application you want to generate:")
+    options = [
+        "Binary Counter", "Multiplexer", "Logic Gates and Combinational Circuits",
+        "Arithmetic Operations (Adders/Subtractors)", "Shift Register",
+        "Flip-Flops (D, SR, T, JK)", "ALU (Arithmetic Logic Unit)",
+        "Parity Generator and Checker", "Finite State Machine (FSM)",
+        "PWM Generator"
+    ]
+    for i, option in enumerate(options, 1):
+        print(f"{i}. {option}")
+
+    while True:
+        choice = input("Enter the number corresponding to your choice: ")
+        if choice in [str(i) for i in range(1, 11)]:
+            break
+        else:
+            print("Invalid choice! Please select a valid option.")
+
+    if choice == "1":
+        generate_binary_counter()
+    elif choice == "2":
+        generate_multiplexer()
+    elif choice == "3":
+        generate_logic_circuit()
+    elif choice == "4":
+        generate_arithmetic_operation()
+    elif choice == "5":
+        generate_shift_register()
+    elif choice == "6":
+        generate_flip_flop()
+    elif choice == "7":
+        generate_alu()
+    elif choice == "8":
+        generate_parity_circuit()
+    elif choice == "9":
+        generate_finite_state_machine()
+    elif choice == "10":
+        generate_pwm_generator()
+
+
+# Utility: Check if file exists and ask before overwriting
+def write_to_file(filename, content):
+    if os.path.exists(filename):
+        overwrite = input(f"The file {filename} already exists. Overwrite? (y/n): ").strip().lower()
+        if overwrite != 'y':
+            print("File creation canceled.")
+            return
+    with open(filename, "w") as f:
+        f.write(content)
+    print(f"File saved: {filename}")
+
+
+# Utility: Generate FPGA Constraints File
+def create_constraints(pins, entity_name):
+    constraints = []
+    for pin in pins:
+        pin_number = input(f"Enter the FPGA pin number for signal '{pin}': ")
+        constraints.append(f"set_property PACKAGE_PIN {pin_number} [get_ports {{{pin}}}]\n")
+        constraints.append(f"set_property IOSTANDARD LVCMOS33 [get_ports {{{pin}}}]\n")
+
+    xdc_filename = f"{entity_name}_constraints.xdc"
+    write_to_file(xdc_filename, "".join(constraints))
+
+
+# Application 1: Binary Counter
+def generate_binary_counter():
+    entity_name = input("Enter the entity name (e.g., binary_counter): ")
+    width = int(input("Enter the width of the counter (number of bits): "))
+    clock = input("Enter the clock signal name (e.g., clk): ")
+    reset = input("Enter the reset signal name (e.g., reset): ")
+
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity {entity_name} is
+    Port (
+        {clock} : in STD_LOGIC;
+        {reset} : in STD_LOGIC;
+        count : out STD_LOGIC_VECTOR({width - 1} downto 0)
+    );
+end {entity_name};
+
+architecture Behavioral of {entity_name} is
+    signal counter: UNSIGNED({width - 1} downto 0) := (others => '0');
+begin
+    process({clock}, {reset})
+    begin
+        if {reset} = '1' then
+            counter <= (others => '0');
+        elsif rising_edge({clock}) then
+            counter <= counter + 1;
+        end if;
+    end process;
+
+    count <= STD_LOGIC_VECTOR(counter);
+end Behavioral;
+"""
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+    create_constraints([clock, reset, "count"], entity_name)
+
+
+# Application 2: Multiplexer
+def generate_multiplexer():
+    entity_name = input("Enter the entity name (e.g., mux): ")
+    num_inputs = int(input("Enter number of data inputs (e.g., 4 for 4-to-1 MUX): "))
+    select_lines = int(input("Enter number of select lines (e.g., 2 for 4-to-1 MUX): "))
+    output = input("Enter the output signal name (e.g., y): ")
+
+    data_inputs = [input(f"Enter data input {i + 1} name (e.g., d{i}): ") for i in range(num_inputs)]
+    select_signals = [input(f"Enter select line {i + 1} name (e.g., s{i}): ") for i in range(select_lines)]
+
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity {entity_name} is
+    Port (
+"""
+    for data in data_inputs:
+        vhdl_code += f"        {data} : in STD_LOGIC;\n"
+    for sel in select_signals:
+        vhdl_code += f"        {sel} : in STD_LOGIC;\n"
+    vhdl_code += f"        {output} : out STD_LOGIC\n    );\nend {entity_name};\n\n"
+
+    vhdl_code += f"""
+architecture Behavioral of {entity_name} is
+begin
+    process({', '.join(select_signals + data_inputs)})
+    begin
+        case {f'"{"&".join(select_signals)}"'} is
+"""
+    for i, data in enumerate(data_inputs):
+        sel_bin = bin(i)[2:].zfill(select_lines)
+        vhdl_code += f"            when \"{sel_bin}\" => {output} <= {data};\n"
+    vhdl_code += f"""            when others => {output} <= '0';
+        end case;
+    end process;
+end Behavioral;
+"""
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+    create_constraints(data_inputs + select_signals + [output], entity_name)
+
+
+# Application 3: Logic Gates and Combinational Circuits
+
+def generate_logic_circuit():
+    entity_name = input("Enter entity name for logic circuit: ")
+    while True:
+        try:
+            num_gates = int(input("Enter the number of gates to include: "))
+            if num_gates < 1:
+                print("Number of gates should be at least 1. Please try again.")
+                continue
+            break
+        except ValueError:
+            print("Invalid input! Please enter an integer value for the number of gates.")
+
+    signals = []
+    operations = []
+
+    for i in range(num_gates):
+        gate_type = input(f"Enter the type of gate {i + 1} (AND, OR, NOT, etc.): ").upper()
+        if gate_type == "NOT":
+            inputs = [input("Enter the input signal name: ")]
+            output = input("Enter the output signal name: ")
+            operations.append((gate_type, inputs, output))
+            signals.extend(inputs + [output])
+        else:
+            while True:
+                try:
+                    num_inputs = int(input(f"Enter the number of inputs for {gate_type} gate: "))
+                    if num_inputs < 2:  # Assuming minimum 2 inputs for gates other than NOT
+                        print(f"{gate_type} gates require at least 2 inputs. Please try again.")
+                        continue
+                    break
+                except ValueError:
+                    print("Invalid input! Please enter an integer value for the number of inputs.")
+            inputs = [input(f"Enter input {j + 1}: ") for j in range(num_inputs)]
+            output = input("Enter the output signal name: ")
+            operations.append((gate_type, inputs, output))
+            signals.extend(inputs + [output])
+
+    signals = list(set(signals))  # Remove duplicates
+    vhdl_code = f"""
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity {entity_name} is
+    Port (
+"""
+    for sig in signals:
+        vhdl_code += f"        {sig} : inout STD_LOGIC;\n"
+    vhdl_code = vhdl_code.strip(",\n") + "\n    );\nend {entity_name};\n\n"
+
+    vhdl_code += "architecture Behavioral of {entity_name} is\nbegin\n"
+    for gate_type, inputs, output in operations:
+        if gate_type == "NOT":
+            vhdl_code += f"    {output} <= NOT {inputs[0]};\n"
+        else:
+            vhdl_code += f"    {output} <= {gate_type}({', '.join(inputs)});\n"
+    vhdl_code += "end Behavioral;\n"
+
+    write_to_file(f"{entity_name}.vhdl", vhdl_code)
+    create_constraints(signals, entity_name)
+
+
+
+
+if __name__ == "__main__":
+    main()
+
+#To write the next set of programs
+
